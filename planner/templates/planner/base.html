@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>UVA Smart Planner</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>
+    <style>
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .calendar-panel { min-height: 650px; }
+        .small { font-size: 0.9rem; color: #666; }
+        .metric-card { padding: 1rem; border: 1px solid #ddd; border-radius: 0.5rem; }
+    </style>
+</head>
+<body>
+<main class="container">
+    <nav>
+        <ul>
+            <li><strong>UVA Smart Planner</strong></li>
+        </ul>
+        <ul>
+            <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+            <li><a href="{% url 'profile' %}">Profile</a></li>
+            <li><a href="{% url 'calendar_upload' %}">ICS Upload</a></li>
+            <li><a href="{% url 'syllabus_upload' %}">Syllabus Upload</a></li>
+            <li><a href="{% url 'task_list' %}">Tasks</a></li>
+            <li><a href="{% url 'daily_schedule' %}">Schedule</a></li>
+            <li><a href="{% url 'replan_logs' %}">Replans</a></li>
+        </ul>
+    </nav>
+    {% if messages %}
+        {% for message in messages %}
+            <article class="{{ message.tags }}">{{ message }}</article>
+        {% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

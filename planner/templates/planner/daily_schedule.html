@@ -1,0 +1,78 @@
+{% extends "planner/base.html" %}
+
+{% block content %}
+<h1>Daily Schedule</h1>
+<p>Date: {{ target_date }}</p>
+
+<div class="grid-2">
+    <article>
+        <h3>Generate Schedule</h3>
+        <form method="post" action="{% url 'generate_daily_schedule' %}">
+            {% csrf_token %}
+            {{ generate_form.as_p }}
+            <button type="submit">Generate</button>
+        </form>
+        <h3>Apply Update</h3>
+        <form method="post" action="{% url 'apply_patch' %}">
+            {% csrf_token %}
+            {{ update_form.as_p }}
+            <button type="submit">Replan</button>
+        </form>
+        {% if latest_version %}
+            <p>Latest saved version: {{ latest_version.version }}</p>
+        {% endif %}
+        <p>{{ summary }}</p>
+    </article>
+    <article>
+        <h3>Metrics</h3>
+        <div class="metric-card">Hard conflicts: {{ metrics.hard_conflict_count }}</div>
+        <div class="metric-card">Deadline buffer minutes: {{ metrics.deadline_buffer_minutes }}</div>
+        <div class="metric-card">Fragmentation count: {{ metrics.fragmentation_count }}</div>
+        <div class="metric-card">Weighted completion: {{ metrics.weighted_completion_score }}</div>
+    </article>
+</div>
+
+<div class="grid-2">
+    <article class="calendar-panel">
+        <div id="planner-calendar"></div>
+    </article>
+    <article>
+        <h3>Blocks</h3>
+        {% if schedule_blocks %}
+            <ul>
+                {% for block in schedule_blocks %}
+                    <li>{{ block.start_datetime|date:"H:i" }}-{{ block.end_datetime|date:"H:i" }} {{ block.title }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No generated task blocks for this date.</p>
+        {% endif %}
+
+        <h3>Fixed Events</h3>
+        {% if fixed_events %}
+            <ul>
+                {% for event in fixed_events %}
+                    <li>{{ event.start_datetime|date:"H:i" }}-{{ event.end_datetime|date:"H:i" }} {{ event.title }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No imported fixed events.</p>
+        {% endif %}
+    </article>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const calendarEl = document.getElementById("planner-calendar");
+    const eventFeed = {{ event_feed_json|safe }};
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: "timeGridDay",
+        initialDate: "{{ target_date|date:'Y-m-d' }}",
+        allDaySlot: false,
+        events: eventFeed,
+        height: 650,
+    });
+    calendar.render();
+});
+</script>
+{% endblock %}

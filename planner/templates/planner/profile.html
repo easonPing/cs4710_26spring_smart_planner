@@ -1,0 +1,12 @@
+{% extends "planner/base.html" %}
+
+{% block content %}
+<h1>Profile</h1>
+<p>Configure your study window, sleep, meals, and replanning freeze horizon.</p>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Save Profile</button>
+</form>
+{% endblock %}

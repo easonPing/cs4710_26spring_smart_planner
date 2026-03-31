@@ -1,0 +1,56 @@
+{% extends "planner/base.html" %}
+
+{% block content %}
+<h1>Tasks</h1>
+
+<div class="grid-2">
+    <article>
+        <h3>{% if edit_task %}Edit Task{% else %}Add Task{% endif %}</h3>
+        <form method="post">
+            {% csrf_token %}
+            {% if edit_task %}
+                <input type="hidden" name="task_id" value="{{ edit_task.id }}">
+            {% endif %}
+            {{ form.as_p }}
+            <button type="submit">{% if edit_task %}Update{% else %}Create{% endif %}</button>
+        </form>
+    </article>
+    <article>
+        <h3>Task Review Queue</h3>
+        <p>{{ tasks|length }} total tasks.</p>
+        <a href="{% url 'task_review' %}" role="button">Open Review Queue</a>
+    </article>
+</div>
+
+<h2>All Tasks</h2>
+{% if tasks %}
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Due</th>
+                <th>Minutes</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Review</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for task in tasks %}
+                <tr>
+                    <td>{{ task.title }}</td>
+                    <td>{{ task.due_datetime|default:"-" }}</td>
+                    <td>{{ task.estimated_minutes }}</td>
+                    <td>{{ task.priority }}</td>
+                    <td>{{ task.status }}</td>
+                    <td>{% if task.needs_review %}Needs review{% else %}Ready{% endif %}</td>
+                    <td><a href="{% url 'task_list' %}?edit={{ task.id }}">Edit</a></td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No tasks available.</p>
+{% endif %}
+{% endblock %}

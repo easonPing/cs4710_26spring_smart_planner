@@ -1,0 +1,12 @@
+{% extends "planner/base.html" %}
+
+{% block content %}
+<h1>Syllabus Upload</h1>
+<p>Upload a PDF or DOCX file to extract task candidates.</p>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Extract Tasks</button>
+</form>
+{% endblock %}

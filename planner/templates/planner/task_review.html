@@ -1,0 +1,41 @@
+{% extends "planner/base.html" %}
+
+{% block content %}
+<h1>Task Review</h1>
+<p>Low-confidence syllabus tasks can be corrected here before becoming active tasks.</p>
+
+{% if review_tasks %}
+    {% for task in review_tasks %}
+        <article>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="task_id" value="{{ task.id }}">
+                <label>
+                    Title
+                    <input type="text" name="title" value="{{ task.title }}">
+                </label>
+                <label>
+                    Course
+                    <input type="text" name="course_name" value="{{ task.course_name }}">
+                </label>
+                <label>
+                    Due datetime
+                    <input type="datetime-local" name="due_datetime" value="{% if task.due_datetime %}{{ task.due_datetime|date:'Y-m-d\\TH:i' }}{% endif %}">
+                </label>
+                <label>
+                    Estimated minutes
+                    <input type="number" name="estimated_minutes" value="{{ task.estimated_minutes }}">
+                </label>
+                <p class="small">Excerpt: {{ task.raw_excerpt }}</p>
+                <div>
+                    <button type="submit" name="action" value="save">Save and Approve</button>
+                    <button type="submit" name="action" value="approve" class="secondary">Approve As-Is</button>
+                    <button type="submit" name="action" value="reject" class="contrast">Reject</button>
+                </div>
+            </form>
+        </article>
+    {% endfor %}
+{% else %}
+    <p>No tasks need review.</p>
+{% endif %}
+{% endblock %}

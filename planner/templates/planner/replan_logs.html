@@ -1,0 +1,33 @@
+{% extends "planner/base.html" %}
+
+{% block content %}
+<h1>Replan Logs</h1>
+{% if logs %}
+    <table>
+        <thead>
+            <tr>
+                <th>Created</th>
+                <th>Date</th>
+                <th>Trigger</th>
+                <th>Versions</th>
+                <th>Moved Blocks</th>
+                <th>Summary</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+                <tr>
+                    <td>{{ log.created_at }}</td>
+                    <td>{{ log.schedule_date }}</td>
+                    <td>{{ log.trigger_type }}</td>
+                    <td>{{ log.old_version }} -> {{ log.new_version }}</td>
+                    <td>{{ log.moved_block_count }}</td>
+                    <td>{{ log.summary_text }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No replan logs yet.</p>
+{% endif %}
+{% endblock %}

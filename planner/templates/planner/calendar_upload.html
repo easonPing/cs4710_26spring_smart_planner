@@ -1,0 +1,36 @@
+{% extends "planner/base.html" %}
+
+{% block content %}
+<h1>ICS Upload</h1>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Import Calendar</button>
+</form>
+
+<h2>Recent Events</h2>
+{% if recent_events %}
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Type</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in recent_events %}
+                <tr>
+                    <td>{{ event.title }}</td>
+                    <td>{{ event.start_datetime }}</td>
+                    <td>{{ event.end_datetime }}</td>
+                    <td>{{ event.event_type }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No calendar events imported yet.</p>
+{% endif %}
+{% endblock %}

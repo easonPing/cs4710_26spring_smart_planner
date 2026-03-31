@@ -1,0 +1,66 @@
+{% extends "planner/base.html" %}
+
+{% block content %}
+<h1>Dashboard</h1>
+<p>Single-user planning workspace for ICS imports, syllabus extraction, and daily scheduling.</p>
+
+<div class="grid-2">
+    <article>
+        <h3>System Status</h3>
+        <p>Calendar events: {{ calendar_count }}</p>
+        <p>Tasks: {{ task_count }}</p>
+        <p>Needs review: {{ review_count }}</p>
+        <p>Replan logs: {{ replan_count }}</p>
+        <p>Codex auth ready:
+            {% if auth_state.ready %}
+                Yes
+            {% else %}
+                No
+            {% endif %}
+        </p>
+        {% if auth_state.reason %}
+            <p class="small">{{ auth_state.reason }}</p>
+        {% endif %}
+    </article>
+    <article>
+        <h3>Quick Actions</h3>
+        <form method="post" action="{% url 'generate_daily_schedule' %}">
+            {% csrf_token %}
+            {{ generate_form.as_p }}
+            <button type="submit">Generate Schedule</button>
+        </form>
+        <form method="post" action="{% url 'apply_patch' %}">
+            {% csrf_token %}
+            {{ update_form.as_p }}
+            <button type="submit">Apply Update and Replan</button>
+        </form>
+    </article>
+</div>
+
+<div class="grid-2">
+    <article>
+        <h3>Upcoming Tasks</h3>
+        {% if upcoming_tasks %}
+            <ul>
+                {% for task in upcoming_tasks %}
+                    <li>{{ task.title }}{% if task.due_datetime %} - {{ task.due_datetime }}{% endif %}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No tasks yet.</p>
+        {% endif %}
+    </article>
+    <article>
+        <h3>Today's Blocks</h3>
+        {% if today_blocks %}
+            <ul>
+                {% for block in today_blocks %}
+                    <li>{{ block.start_datetime|date:"H:i" }}-{{ block.end_datetime|date:"H:i" }} {{ block.title }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No schedule generated for today.</p>
+        {% endif %}
+    </article>
+</div>
+{% endblock %}

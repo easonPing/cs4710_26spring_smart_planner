@@ -1,0 +1,6 @@
+Django
+python-dotenv
+icalendar
+pdfplumber
+python-docx
+ortools

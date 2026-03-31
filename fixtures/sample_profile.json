@@ -1,0 +1,14 @@
+{
+  "preferred_study_start": "09:00:00",
+  "preferred_study_end": "21:00:00",
+  "sleep_start": "23:30:00",
+  "sleep_end": "07:30:00",
+  "breakfast_start": "08:00:00",
+  "breakfast_end": "08:30:00",
+  "lunch_start": "12:00:00",
+  "lunch_end": "13:00:00",
+  "dinner_start": "18:00:00",
+  "dinner_end": "19:00:00",
+  "max_continuous_work_minutes": 120,
+  "default_break_minutes": 15
+}
