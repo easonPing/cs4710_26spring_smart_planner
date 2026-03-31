@@ -1,0 +1,63 @@
+{
+  "date": "2026-04-17",
+  "version": 1,
+  "generated_at": "2026-03-31T02:39:20.861716+00:00",
+  "blocks": [
+    {
+      "title": "Work on CSA #1",
+      "task_id": 44,
+      "start_datetime": "2026-04-17T07:30:00-04:00",
+      "end_datetime": "2026-04-17T08:00:00-04:00",
+      "block_type": "task",
+      "is_locked": false
+    },
+    {
+      "title": "Work on Lab #2",
+      "task_id": 39,
+      "start_datetime": "2026-04-17T09:00:00-04:00",
+      "end_datetime": "2026-04-17T10:30:00-04:00",
+      "block_type": "task",
+      "is_locked": false
+    },
+    {
+      "title": "Work on Lab #3",
+      "task_id": 40,
+      "start_datetime": "2026-04-17T10:30:00-04:00",
+      "end_datetime": "2026-04-17T11:00:00-04:00",
+      "block_type": "task",
+      "is_locked": false
+    },
+    {
+      "title": "Work on Lab #1",
+      "task_id": 38,
+      "start_datetime": "2026-04-17T13:00:00-04:00",
+      "end_datetime": "2026-04-17T14:30:00-04:00",
+      "block_type": "task",
+      "is_locked": false
+    },
+    {
+      "title": "Work on Lab #4",
+      "task_id": 41,
+      "start_datetime": "2026-04-17T14:30:00-04:00",
+      "end_datetime": "2026-04-17T15:00:00-04:00",
+      "block_type": "task",
+      "is_locked": false
+    },
+    {
+      "title": "Work on CSA #2",
+      "task_id": 45,
+      "start_datetime": "2026-04-17T15:30:00-04:00",
+      "end_datetime": "2026-04-17T16:00:00-04:00",
+      "block_type": "task",
+      "is_locked": false
+    },
+    {
+      "title": "Work on Friday Cyber Chat",
+      "task_id": 46,
+      "start_datetime": "2026-04-17T16:00:00-04:00",
+      "end_datetime": "2026-04-17T17:00:00-04:00",
+      "block_type": "task",
+      "is_locked": false
+    }
+  ]
+}

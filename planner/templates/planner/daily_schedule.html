@@ -37,6 +37,21 @@
         <div id="planner-calendar"></div>
     </article>
     <article>
+        <h3>Candidate Tasks</h3>
+        {% if candidate_tasks %}
+            <ul>
+                {% for task in candidate_tasks %}
+                    <li>
+                        {{ task.title }}
+                        {% if task.due_datetime %}- due {{ task.due_datetime|date:"M j, g:i a" }}{% endif %}
+                        ({{ task.estimated_minutes }} min, {{ task.priority }})
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No candidate tasks were selected for this date.</p>
+        {% endif %}
+
         <h3>Blocks</h3>
         {% if schedule_blocks %}
             <ul>
@@ -46,6 +61,17 @@
             </ul>
         {% else %}
             <p>No generated task blocks for this date.</p>
+        {% endif %}
+
+        <h3>Unscheduled Candidate Tasks</h3>
+        {% if unscheduled_tasks %}
+            <ul>
+                {% for task in unscheduled_tasks %}
+                    <li>{{ task.title }} ({{ task.estimated_minutes }} min)</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>All selected tasks were assigned blocks for this date.</p>
         {% endif %}
 
         <h3>Fixed Events</h3>

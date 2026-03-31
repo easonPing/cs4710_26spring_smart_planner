@@ -146,6 +146,8 @@ SLOT_MINUTES = get_env('PLANNER_SLOT_MINUTES', 30, int)
 RECURRING_HORIZON_DAYS = get_env('PLANNER_RECURRING_HORIZON_DAYS', 84, int)
 CODEX_AUTH_PATH = get_env('CODEX_AUTH_PATH', '')
 CODEX_CACHE_DIR = BASE_DIR / get_env('CODEX_CACHE_DIR', 'data/oauth_cache')
+CODEX_MODEL = get_env('CODEX_MODEL', 'gpt-5.4')
+CODEX_API_BASE = get_env('CODEX_API_BASE', 'https://chatgpt.com/backend-api')
 
 for relative_dir in [
     'media/ics',

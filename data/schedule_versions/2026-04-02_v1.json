@@ -1,0 +1,23 @@
+{
+  "date": "2026-04-02",
+  "version": 1,
+  "generated_at": "2026-03-31T01:55:44.537079+00:00",
+  "blocks": [
+    {
+      "title": "Work on Project milestone draft",
+      "task_id": 3,
+      "start_datetime": "2026-04-02T09:00:00-04:00",
+      "end_datetime": "2026-04-02T09:30:00-04:00",
+      "block_type": "task",
+      "is_locked": false
+    },
+    {
+      "title": "Work on Read HCI paper",
+      "task_id": 4,
+      "start_datetime": "2026-04-02T13:00:00-04:00",
+      "end_datetime": "2026-04-02T13:30:00-04:00",
+      "block_type": "task",
+      "is_locked": false
+    }
+  ]
+}

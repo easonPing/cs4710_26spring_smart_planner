@@ -1,0 +1,31 @@
+{
+  "date": "2026-03-30",
+  "version": 1,
+  "generated_at": "2026-03-31T01:53:56.944964+00:00",
+  "blocks": [
+    {
+      "title": "Work on Project milestone draft",
+      "task_id": 3,
+      "start_datetime": "2026-03-30T09:00:00-04:00",
+      "end_datetime": "2026-03-30T11:00:00-04:00",
+      "block_type": "task",
+      "is_locked": false
+    },
+    {
+      "title": "Work on Read HCI paper",
+      "task_id": 4,
+      "start_datetime": "2026-03-30T16:00:00-04:00",
+      "end_datetime": "2026-03-30T17:30:00-04:00",
+      "block_type": "task",
+      "is_locked": false
+    },
+    {
+      "title": "Work on Project milestone draft",
+      "task_id": 3,
+      "start_datetime": "2026-03-30T19:00:00-04:00",
+      "end_datetime": "2026-03-30T20:00:00-04:00",
+      "block_type": "task",
+      "is_locked": false
+    }
+  ]
+}

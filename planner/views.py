@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from .forms import (
+    CalendarEventForm,
     ICSUploadForm,
     NaturalLanguageUpdateForm,
     ScheduleGenerationForm,
@@ -16,7 +17,7 @@ from .forms import (
     UserProfileForm,
 )
 from .models import CalendarEvent, ReplanLog, ScheduleBlock, Task, UserProfile
-from .services.calendar_service import build_blocked_slots, import_ics_events
+from .services.calendar_service import build_blocked_slots, import_ics_events, summarize_course_meetings
 from .services.candidate_selector import select_daily_candidates
 from .services.codex_auth import CodexOAuthProvider
 from .services.metrics import (
@@ -91,21 +92,62 @@ def profile_view(request):
 
 
 def calendar_upload_view(request):
+    edit_event = None
     if request.method == "POST":
-        form = ICSUploadForm(request.POST, request.FILES)
-        if form.is_valid():
-            uploaded = form.cleaned_data["ics_file"]
-            target_path = settings.MEDIA_ROOT / "ics" / uploaded.name
-            with open(target_path, "wb") as handle:
-                for chunk in uploaded.chunks():
-                    handle.write(chunk)
-            imported = import_ics_events(None, target_path)
-            messages.success(request, f"Imported {len(imported)} calendar events.")
+        action = request.POST.get("action", "upload_ics")
+        if action == "delete_event":
+            event = get_object_or_404(CalendarEvent, pk=request.POST.get("event_id"))
+            event.delete()
+            messages.success(request, "Event deleted.")
             return redirect("calendar_upload")
+        if action in {"create_event", "update_event"}:
+            if request.POST.get("event_id"):
+                edit_event = get_object_or_404(CalendarEvent, pk=request.POST["event_id"])
+            event_form = CalendarEventForm(request.POST, instance=edit_event)
+            upload_form = ICSUploadForm()
+            if event_form.is_valid():
+                event = event_form.save(commit=False)
+                event.source = "manual" if action == "create_event" else event.source or "manual"
+                event.is_fixed = True
+                if action == "create_event":
+                    event.external_uid = ""
+                event.save()
+                messages.success(request, "Event saved.")
+                return redirect("calendar_upload")
+        else:
+            upload_form = ICSUploadForm(request.POST, request.FILES)
+            event_form = CalendarEventForm()
+            if upload_form.is_valid():
+                uploaded = upload_form.cleaned_data["ics_file"]
+                target_path = settings.MEDIA_ROOT / "ics" / uploaded.name
+                with open(target_path, "wb") as handle:
+                    for chunk in uploaded.chunks():
+                        handle.write(chunk)
+                try:
+                    imported = import_ics_events(None, target_path)
+                except Exception as exc:
+                    messages.error(request, f"Unable to import this ICS file: {exc}")
+                    return redirect("calendar_upload")
+                messages.success(request, f"Imported {len(imported)} calendar events.")
+                return redirect("calendar_upload")
     else:
-        form = ICSUploadForm()
-    recent_events = CalendarEvent.objects.order_by("-start_datetime")[:20]
-    return render(request, "planner/calendar_upload.html", {"form": form, "recent_events": recent_events})
+        upload_form = ICSUploadForm()
+        if request.GET.get("edit"):
+            edit_event = get_object_or_404(CalendarEvent, pk=request.GET["edit"])
+        event_form = CalendarEventForm(instance=edit_event)
+    recent_events = CalendarEvent.objects.order_by("title", "start_datetime")
+    course_summaries = summarize_course_meetings(recent_events)
+    return render(
+        request,
+        "planner/calendar_upload.html",
+        {
+            "form": upload_form,
+            "event_form": event_form,
+            "recent_events": recent_events,
+            "course_summaries": course_summaries,
+            "edit_event": edit_event,
+        },
+    )
 
 
 def syllabus_upload_view(request):
@@ -129,6 +171,12 @@ def syllabus_upload_view(request):
 def task_list_view(request):
     edit_task = None
     if request.method == "POST":
+        action = request.POST.get("action", "save")
+        if action == "delete":
+            task = get_object_or_404(Task, pk=request.POST.get("task_id"))
+            task.delete()
+            messages.success(request, "Task deleted.")
+            return redirect("task_list")
         if request.POST.get("task_id"):
             edit_task = get_object_or_404(Task, pk=request.POST["task_id"])
             form = TaskManualForm(request.POST, instance=edit_task)
@@ -262,6 +310,9 @@ def daily_schedule_view(request):
     profile = _get_profile()
     schedule_blocks = list(ScheduleBlock.objects.filter(schedule_date=target_date).order_by("start_datetime"))
     fixed_events = list(CalendarEvent.objects.filter(start_datetime__date=target_date).order_by("start_datetime"))
+    candidate_tasks = select_daily_candidates(target_date)
+    scheduled_task_ids = {block.task_id for block in schedule_blocks if block.task_id}
+    unscheduled_tasks = [task for task in candidate_tasks if task.id not in scheduled_task_ids]
     event_feed = [event.to_fullcalendar_event() for event in fixed_events] + _serialize_schedule_events(schedule_blocks)
     latest_version = latest_schedule_version(target_date.isoformat())
     metrics = {
@@ -286,6 +337,8 @@ def daily_schedule_view(request):
             "update_form": NaturalLanguageUpdateForm(),
             "schedule_blocks": schedule_blocks,
             "fixed_events": fixed_events,
+            "candidate_tasks": candidate_tasks,
+            "unscheduled_tasks": unscheduled_tasks,
             "event_feed_json": json.dumps(event_feed),
             "latest_version": latest_version,
             "metrics": metrics,

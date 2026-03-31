@@ -9,6 +9,45 @@ from planner.utils import ensure_aware, normalize_title
 from .codex_provider import CodexProvider
 from .syllabus_text import extract_document_text, split_into_chunks, write_extracted_cache
 
+NOISE_KEYWORDS = {
+    "accommodation",
+    "grading",
+    "policy",
+    "attendance",
+    "office hour",
+    "office hours",
+    "textbook",
+    "prerequisite",
+    "prerequisites",
+    "disability",
+    "integrity",
+    "honor code",
+    "wellness",
+    "email",
+    "contact",
+    "zoom",
+}
+
+DELIVERABLE_KEYWORDS = {
+    "assignment",
+    "homework",
+    "lab",
+    "project",
+    "exam",
+    "quiz",
+    "midterm",
+    "final",
+    "presentation",
+    "writeup",
+    "report",
+    "paper",
+    "milestone",
+    "deliverable",
+    "reading response",
+    "prep",
+    "submission",
+}
+
 
 def extract_tasks_from_document(file_path, file_type=None):
     document_path = Path(file_path)
@@ -23,7 +62,8 @@ def extract_tasks_from_chunks(chunks, document_name=""):
     raw_candidates = provider.extract_tasks([chunk["text"] for chunk in chunks], document_name=document_name)
     merged = merge_task_candidates(raw_candidates)
     deduped = deduplicate_tasks(merged)
-    return flag_low_confidence(deduped)
+    refined = refine_task_candidates(deduped)
+    return flag_low_confidence(refined)
 
 
 def merge_task_candidates(candidates):
@@ -57,9 +97,45 @@ def deduplicate_tasks(tasks):
     return deduped
 
 
+def _candidate_text(candidate):
+    return " ".join(
+        [
+            str(candidate.get("title", "")),
+            str(candidate.get("raw_excerpt", "")),
+        ]
+    ).lower()
+
+
+def _has_deliverable_keyword(candidate):
+    text = _candidate_text(candidate)
+    return any(keyword in text for keyword in DELIVERABLE_KEYWORDS)
+
+
+def _is_probable_non_task(candidate):
+    text = _candidate_text(candidate)
+    has_noise = any(keyword in text for keyword in NOISE_KEYWORDS)
+    return has_noise and not _has_deliverable_keyword(candidate)
+
+
+def refine_task_candidates(tasks):
+    refined = []
+    for task in tasks:
+        confidence = float(task.get("confidence", 0.0))
+        has_due = bool(task.get("due_datetime"))
+        if _is_probable_non_task(task):
+            continue
+        if has_due:
+            refined.append(task)
+            continue
+        if confidence >= 0.97 and _has_deliverable_keyword(task):
+            task["needs_review"] = True
+            refined.append(task)
+    return refined
+
+
 def flag_low_confidence(tasks, threshold=0.7):
     for task in tasks:
-        task["needs_review"] = task.get("confidence", 0.0) < threshold
+        task["needs_review"] = task.get("needs_review", False) or task.get("confidence", 0.0) < threshold or not task.get("due_datetime")
     return tasks
 
 

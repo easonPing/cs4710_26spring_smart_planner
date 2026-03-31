@@ -1,7 +1,12 @@
 import json
 import logging
 import re
+import uuid
+import urllib.error
+import urllib.request
+from urllib.parse import urlparse
 
+from django.conf import settings
 from dateutil import parser as date_parser
 from django.utils import timezone
 
@@ -25,29 +30,239 @@ class CodexProvider:
     def __init__(self):
         self.oauth_provider = CodexOAuthProvider()
 
-    def call_codex_json(self, prompt, schema_name):
+    @staticmethod
+    def _build_request_id():
+        return str(uuid.uuid4())
+
+    @staticmethod
+    def _resolve_codex_url():
+        base = (settings.CODEX_API_BASE or "https://chatgpt.com/backend-api").rstrip("/")
+        if base.endswith("/codex/responses"):
+            return base
+        if base.endswith("/codex"):
+            return f"{base}/responses"
+        return f"{base}/codex/responses"
+
+    @staticmethod
+    def _parse_sse_json_lines(raw_bytes):
+        buffer = ""
+        events = []
+        for chunk in raw_bytes.decode("utf-8", "replace").split("\n\n"):
+            if not chunk.strip():
+                continue
+            data_lines = []
+            for line in chunk.splitlines():
+                if line.startswith("data:"):
+                    payload = line[5:].strip()
+                    if payload and payload != "[DONE]":
+                        data_lines.append(payload)
+            if not data_lines:
+                continue
+            try:
+                events.append(json.loads("\n".join(data_lines)))
+            except json.JSONDecodeError:
+                continue
+        return events
+
+    @staticmethod
+    def _extract_output_text(events):
+        message_text = []
+        output_done_chunks = []
+        deltas = []
+        for event in events:
+            event_type = event.get("type")
+            if event_type == "response.output_text.done":
+                text = event.get("text")
+                if isinstance(text, str):
+                    output_done_chunks.append(text)
+            elif event_type == "response.output_text.delta":
+                delta = event.get("delta")
+                if isinstance(delta, str):
+                    deltas.append(delta)
+            elif event_type == "response.output_item.done":
+                item = event.get("item") or {}
+                if item.get("type") == "message":
+                    for content in item.get("content", []):
+                        if content.get("type") == "output_text" and isinstance(content.get("text"), str):
+                            message_text.append(content["text"])
+        if message_text:
+            return "".join(message_text).strip()
+        if output_done_chunks:
+            return "".join(output_done_chunks).strip()
+        return "".join(deltas).strip()
+
+    @staticmethod
+    def _normalize_task_items(payload, document_name=""):
+        items = payload.get("items") if isinstance(payload, dict) else payload
+        if not isinstance(items, list):
+            raise CodexProviderError("Codex task extraction returned an invalid payload.")
+        normalized = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            normalized.append(
+                {
+                    "title": str(item.get("title", "")).strip()[:255],
+                    "course_name": str(item.get("course_name", "")).strip()[:120],
+                    "due_datetime": item.get("due_datetime"),
+                    "estimated_minutes": int(item.get("estimated_minutes") or 60),
+                    "priority": str(item.get("priority", "medium")).strip().lower() or "medium",
+                    "category": str(item.get("category", "assignment")).strip().lower() or "assignment",
+                    "confidence": float(item.get("confidence", 0.5)),
+                    "raw_excerpt": str(item.get("raw_excerpt", "")).strip(),
+                    "document_name": document_name,
+                }
+            )
+        return normalized
+
+    def _get_auth_state(self):
         auth_state = self.oauth_provider.ensure_ready()
         if not auth_state["ready"]:
             raise CodexProviderError(auth_state["reason"] or "Codex provider is unavailable.")
-        raise CodexProviderError(
-            f"Codex structured call for {schema_name} is not wired to a remote API yet. "
-            "The application will use deterministic fallbacks instead."
+        if not auth_state.get("summary", {}).get("account_id"):
+            raise CodexProviderError(
+                "Codex OAuth is connected, but no ChatGPT account id was found in the token."
+            )
+        return auth_state
+
+    def _post_response(self, payload):
+        auth_state = self._get_auth_state()
+        token = auth_state["credentials"]["tokens"]["access_token"]
+        account_id = auth_state["summary"]["account_id"]
+        session_id = self._build_request_id()
+        endpoint = self._resolve_codex_url()
+        parsed = urlparse(endpoint)
+        user_agent = f"smart-planner ({parsed.scheme or 'https'} backend bridge)"
+        request = urllib.request.Request(
+            endpoint,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {token}",
+                "chatgpt-account-id": account_id,
+                "originator": "pi",
+                "User-Agent": user_agent,
+                "OpenAI-Beta": "responses=experimental",
+                "accept": "text/event-stream",
+                "Content-Type": "application/json",
+                "session_id": session_id,
+            },
+            method="POST",
         )
+        try:
+            with urllib.request.urlopen(request, timeout=45) as response:
+                return self._parse_sse_json_lines(response.read())
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", "replace")
+            logger.warning("Codex backend response call failed with status %s: %s", exc.code, body)
+            message = body
+            try:
+                error_payload = json.loads(body)
+                if isinstance(error_payload, dict):
+                    message = (
+                        error_payload.get("detail")
+                        or error_payload.get("message")
+                        or error_payload.get("error", {}).get("message")
+                        or body
+                    )
+            except json.JSONDecodeError:
+                pass
+            raise CodexProviderError(message) from exc
+        except OSError as exc:
+            raise CodexProviderError(f"Codex backend network error: {exc}") from exc
+
+    def call_codex_json(self, prompt, schema_name):
+        response = self._post_response(
+            {
+                "model": settings.CODEX_MODEL,
+                "store": False,
+                "stream": True,
+                "instructions": "Return only valid JSON and no surrounding prose.",
+                "input": [
+                    {
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": prompt}],
+                    }
+                ],
+                "text": {"verbosity": "low"},
+                "include": ["reasoning.encrypted_content"],
+                "prompt_cache_key": f"smart-planner-{schema_name}",
+                "tool_choice": "auto",
+                "parallel_tool_calls": True,
+            }
+        )
+        text = self._extract_output_text(response)
+        if not text:
+            raise CodexProviderError("Codex returned an empty structured response.")
+        return json.loads(text)
 
     def call_codex_text(self, prompt):
-        auth_state = self.oauth_provider.ensure_ready()
-        if not auth_state["ready"]:
-            raise CodexProviderError(auth_state["reason"] or "Codex provider is unavailable.")
-        raise CodexProviderError("Codex text call is not wired to a remote API yet.")
+        response = self._post_response(
+            {
+                "model": settings.CODEX_MODEL,
+                "store": False,
+                "stream": True,
+                "instructions": "You are a concise assistant. Follow the prompt exactly.",
+                "input": [
+                    {
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": prompt}],
+                    }
+                ],
+                "text": {"verbosity": "medium"},
+                "include": ["reasoning.encrypted_content"],
+                "prompt_cache_key": "smart-planner-text",
+                "tool_choice": "auto",
+                "parallel_tool_calls": True,
+            }
+        )
+        text = self._extract_output_text(response)
+        if not text:
+            raise CodexProviderError("Codex returned an empty text response.")
+        return text
 
     def extract_tasks(self, chunks, document_name=""):
         tasks = []
         for chunk in chunks:
-            tasks.extend(self._fallback_extract_from_chunk(chunk, document_name=document_name))
+            prompt = build_task_extraction_prompt(chunk)
+            try:
+                payload = self.call_codex_json(
+                    (
+                        f"{prompt}\n\n"
+                        'Return JSON with shape {"items":[{'
+                        '"title": string, '
+                        '"course_name": string, '
+                        '"due_datetime": string|null, '
+                        '"estimated_minutes": integer, '
+                        '"priority": "low"|"medium"|"high"|"urgent", '
+                        '"category": string, '
+                        '"confidence": number, '
+                        '"raw_excerpt": string'
+                        "}]}."
+                    ),
+                    "task_extraction",
+                )
+                tasks.extend(self._normalize_task_items(payload, document_name=document_name))
+            except (CodexProviderError, ValueError, TypeError):
+                logger.info("Codex task extraction failed; using fallback extraction for %s", document_name or "chunk")
+                tasks.extend(self._fallback_extract_from_chunk(chunk, document_name=document_name))
         return tasks
 
     def parse_patch(self, user_text):
-        _ = build_patch_parsing_prompt(user_text)
+        prompt = build_patch_parsing_prompt(user_text)
+        try:
+            payload = self.call_codex_json(
+                (
+                    f"{prompt}\n\n"
+                    'Return JSON with shape {"trigger_type": string, "payload": object}. '
+                    'Use trigger_type from: add_event, task_done, change_estimate, custom.'
+                ),
+                "patch_parse",
+            )
+            if isinstance(payload, dict) and "trigger_type" in payload:
+                return payload
+        except CodexProviderError:
+            logger.info("Codex patch parsing failed; using deterministic fallback parser.")
+            pass
         try:
             payload = json.loads(user_text)
             if isinstance(payload, dict) and "trigger_type" in payload:
@@ -84,10 +299,8 @@ class CodexProvider:
         return {"trigger_type": "custom", "payload": {"text": user_text}}
 
     def summarize_diff(self, old_blocks, new_blocks, trigger):
-        _ = build_summary_prompt(old_blocks, new_blocks, trigger)
-        old_count = len(old_blocks)
-        new_count = len(new_blocks)
-        return f"Replanned after {trigger}. Block count changed from {old_count} to {new_count}."
+        prompt = build_summary_prompt(old_blocks, new_blocks, trigger)
+        return self.call_codex_text(prompt)
 
     def _fallback_extract_from_chunk(self, chunk, document_name=""):
         prompt = build_task_extraction_prompt(chunk)

@@ -50,6 +50,19 @@ def parse_ics(file_path):
     return events
 
 
+def _build_rrule_iterator(rule_text, dtstart):
+    try:
+        return rrulestr(rule_text, dtstart=dtstart)
+    except ValueError as exc:
+        message = str(exc)
+        if "UNTIL values must be specified in UTC when DTSTART is timezone-aware" not in message:
+            raise
+        # Many university ICS exports store local UNTIL values without UTC even
+        # when DTSTART is timezone-aware. Fall back to a floating DTSTART so
+        # dateutil can expand the recurrence, then localize each occurrence.
+        return rrulestr(rule_text, dtstart=dtstart.replace(tzinfo=None))
+
+
 def expand_recurring_events(events, horizon_days=84):
     expanded = []
     for event in events:
@@ -58,9 +71,15 @@ def expand_recurring_events(events, horizon_days=84):
         if not rrule_value:
             expanded.append({key: value for key, value in event.items() if key != "rrule"})
             continue
+        until_values = rrule_value.get("UNTIL") if hasattr(rrule_value, "get") else None
+        if until_values:
+            until_value = until_values[0] if isinstance(until_values, (list, tuple)) else until_values
+            until_dt = _normalize_datetime(until_value)
+            if until_dt:
+                horizon_end = max(horizon_end, until_dt)
         rule_text = rrule_value.to_ical().decode("utf-8")
         duration = event["end_datetime"] - event["start_datetime"]
-        for occurrence in rrulestr(rule_text, dtstart=event["start_datetime"]):
+        for occurrence in _build_rrule_iterator(rule_text, event["start_datetime"]):
             occurrence = ensure_aware(occurrence)
             if occurrence > horizon_end:
                 break

@@ -21,6 +21,15 @@
         {% if auth_state.reason %}
             <p class="small">{{ auth_state.reason }}</p>
         {% endif %}
+        {% if auth_state.ready and auth_state.summary.email %}
+            <p class="small">Connected account: {{ auth_state.summary.email }}</p>
+        {% endif %}
+        {% if auth_state.ready and auth_state.summary.plan_type %}
+            <p class="small">Plan: {{ auth_state.summary.plan_type }}</p>
+        {% endif %}
+        {% if auth_state.source_path %}
+            <p class="small">Auth source: {{ auth_state.source_path }}</p>
+        {% endif %}
     </article>
     <article>
         <h3>Quick Actions</h3>

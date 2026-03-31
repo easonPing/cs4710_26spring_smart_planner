@@ -1,0 +1,48 @@
+{
+  "date": "2026-04-10",
+  "feasible": false,
+  "missing_minutes": 960,
+  "unscheduled_tasks": [
+    {
+      "task_id": 13,
+      "title": "Lab #1",
+      "remaining_minutes": 120
+    },
+    {
+      "task_id": 14,
+      "title": "Lab #2",
+      "remaining_minutes": 120
+    },
+    {
+      "task_id": 15,
+      "title": "Lab #3",
+      "remaining_minutes": 120
+    },
+    {
+      "task_id": 16,
+      "title": "Lab #4",
+      "remaining_minutes": 120
+    },
+    {
+      "task_id": 17,
+      "title": "Programming Assignment #1",
+      "remaining_minutes": 180
+    },
+    {
+      "task_id": 18,
+      "title": "Lab #5",
+      "remaining_minutes": 120
+    },
+    {
+      "task_id": 28,
+      "title": "Lab #6",
+      "remaining_minutes": 120
+    },
+    {
+      "task_id": 19,
+      "title": "CSA #1",
+      "remaining_minutes": 60
+    }
+  ],
+  "reason": "Insufficient free slots before due time or routine windows."
+}

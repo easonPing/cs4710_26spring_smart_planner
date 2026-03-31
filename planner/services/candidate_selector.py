@@ -24,7 +24,18 @@ def select_daily_candidates(date, now=None, max_tasks=8):
     tasks = base_queryset.filter(due_datetime__isnull=True) | base_queryset.filter(due_datetime__lte=horizon_end)
     task_list = list(tasks.distinct())
     ranked = sorted(task_list, key=lambda task: score_task_for_daily(task, now), reverse=True)
-    return ranked[:max_tasks]
+    selected = []
+    total_minutes = 0
+    daily_budget_minutes = 360
+    for task in ranked:
+        task_minutes = max(task.remaining_minutes, 30)
+        if len(selected) >= max_tasks:
+            break
+        if selected and total_minutes + task_minutes > daily_budget_minutes:
+            continue
+        selected.append(task)
+        total_minutes += task_minutes
+    return selected
 
 
 def select_weekly_candidates(start_date, days=7):

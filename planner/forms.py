@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Task, UserProfile
+from .models import CalendarEvent, Task, UserProfile
 
 
 class ICSUploadForm(forms.Form):
@@ -22,6 +22,26 @@ class SyllabusUploadForm(forms.Form):
         if not (lower_name.endswith('.pdf') or lower_name.endswith('.docx')):
             raise forms.ValidationError('Please upload a PDF or DOCX file.')
         return uploaded
+
+
+class CalendarEventForm(forms.ModelForm):
+    start_datetime = forms.DateTimeField(
+        widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+    )
+    end_datetime = forms.DateTimeField(
+        widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+    )
+
+    class Meta:
+        model = CalendarEvent
+        fields = [
+            'title',
+            'start_datetime',
+            'end_datetime',
+            'event_type',
+            'location',
+            'description',
+        ]
 
 
 class TaskManualForm(forms.ModelForm):

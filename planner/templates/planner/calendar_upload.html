@@ -4,11 +4,55 @@
 <h1>ICS Upload</h1>
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
+    <input type="hidden" name="action" value="upload_ics">
     {{ form.as_p }}
     <button type="submit">Import Calendar</button>
 </form>
 
-<h2>Recent Events</h2>
+<div class="grid-2">
+    <article>
+        <h2>Meeting Summary</h2>
+        <p>Imported ICS events are filtered to daytime meetings only, then grouped by course title.</p>
+        {% if course_summaries %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in course_summaries %}
+                        <tr>
+                            <td>{{ row.title }}</td>
+                            <td>
+                                {% for label in row.times %}
+                                    <div>{{ label }}</div>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No calendar events imported yet.</p>
+        {% endif %}
+    </article>
+    <article>
+        <h2>{% if edit_event %}Edit Event{% else %}Add Event{% endif %}</h2>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="{% if edit_event %}update_event{% else %}create_event{% endif %}">
+            {% if edit_event %}
+                <input type="hidden" name="event_id" value="{{ edit_event.id }}">
+            {% endif %}
+            {{ event_form.as_p }}
+            <button type="submit">{% if edit_event %}Update Event{% else %}Create Event{% endif %}</button>
+        </form>
+    </article>
+</div>
+
+<h2>Events</h2>
 {% if recent_events %}
     <table>
         <thead>
@@ -17,6 +61,7 @@
                 <th>Start</th>
                 <th>End</th>
                 <th>Type</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -26,11 +71,20 @@
                     <td>{{ event.start_datetime }}</td>
                     <td>{{ event.end_datetime }}</td>
                     <td>{{ event.event_type }}</td>
+                    <td>
+                        <a href="{% url 'calendar_upload' %}?edit={{ event.id }}">Edit</a>
+                        <form method="post" style="display:inline-block; margin-left: 0.5rem;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_event">
+                            <input type="hidden" name="event_id" value="{{ event.id }}">
+                            <button type="submit" class="secondary">Delete</button>
+                        </form>
+                    </td>
                 </tr>
             {% endfor %}
         </tbody>
     </table>
 {% else %}
-    <p>No calendar events imported yet.</p>
+    <p>No events stored.</p>
 {% endif %}
 {% endblock %}

@@ -33,7 +33,7 @@
                 <th>Priority</th>
                 <th>Status</th>
                 <th>Review</th>
-                <th></th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -45,7 +45,15 @@
                     <td>{{ task.priority }}</td>
                     <td>{{ task.status }}</td>
                     <td>{% if task.needs_review %}Needs review{% else %}Ready{% endif %}</td>
-                    <td><a href="{% url 'task_list' %}?edit={{ task.id }}">Edit</a></td>
+                    <td>
+                        <a href="{% url 'task_list' %}?edit={{ task.id }}">Edit</a>
+                        <form method="post" style="display:inline-block; margin-left: 0.5rem;">
+                            {% csrf_token %}
+                            <input type="hidden" name="task_id" value="{{ task.id }}">
+                            <input type="hidden" name="action" value="delete">
+                            <button type="submit" class="secondary">Delete</button>
+                        </form>
+                    </td>
                 </tr>
             {% endfor %}
         </tbody>
