@@ -1,75 +1,106 @@
 {% extends "planner/base.html" %}
 
 {% block content %}
-<h1>Dashboard</h1>
-<p>Single-user planning workspace for ICS imports, syllabus extraction, and daily scheduling.</p>
+<div class="page-header">
+    <h1>Dashboard</h1>
+    <p>Single-user planning workspace — ICS imports, syllabus extraction, and daily scheduling.</p>
+</div>
 
-<div class="grid-2">
-    <article>
-        <h3>System Status</h3>
-        <p>Calendar events: {{ calendar_count }}</p>
-        <p>Tasks: {{ task_count }}</p>
-        <p>Needs review: {{ review_count }}</p>
-        <p>Replan logs: {{ replan_count }}</p>
-        <p>Codex auth ready:
-            {% if auth_state.ready %}
-                Yes
-            {% else %}
-                No
-            {% endif %}
-        </p>
-        {% if auth_state.reason %}
-            <p class="small">{{ auth_state.reason }}</p>
-        {% endif %}
-        {% if auth_state.ready and auth_state.summary.email %}
-            <p class="small">Connected account: {{ auth_state.summary.email }}</p>
-        {% endif %}
-        {% if auth_state.ready and auth_state.summary.plan_type %}
-            <p class="small">Plan: {{ auth_state.summary.plan_type }}</p>
-        {% endif %}
-        {% if auth_state.source_path %}
-            <p class="small">Auth source: {{ auth_state.source_path }}</p>
-        {% endif %}
-    </article>
-    <article>
-        <h3>Quick Actions</h3>
-        <form method="post" action="{% url 'generate_daily_schedule' %}">
-            {% csrf_token %}
-            {{ generate_form.as_p }}
-            <button type="submit">Generate Schedule</button>
-        </form>
-        <form method="post" action="{% url 'apply_patch' %}">
-            {% csrf_token %}
-            {{ update_form.as_p }}
-            <button type="submit">Apply Update and Replan</button>
-        </form>
-    </article>
+<div class="stat-row">
+    <div class="stat-pill"><strong>{{ calendar_count }}</strong><span>calendar events</span></div>
+    <div class="stat-pill"><strong>{{ task_count }}</strong><span>tasks</span></div>
+    <div class="stat-pill"><strong>{{ review_count }}</strong><span>needs review</span></div>
+    <div class="stat-pill"><strong>{{ replan_count }}</strong><span>replan logs</span></div>
 </div>
 
 <div class="grid-2">
-    <article>
-        <h3>Upcoming Tasks</h3>
+    <div class="card">
+        <div class="card-title">System Status</div>
+        <div style="display:flex; flex-direction:column; gap:0.6rem;">
+            <div class="flex" style="justify-content:space-between;">
+                <span class="text-muted" style="font-size:0.875rem;">Codex auth</span>
+                {% if auth_state.ready %}
+                    <span class="badge badge-green">Ready</span>
+                {% else %}
+                    <span class="badge badge-red">Not connected</span>
+                {% endif %}
+            </div>
+            {% if auth_state.reason %}
+                <p class="small">{{ auth_state.reason }}</p>
+            {% endif %}
+            {% if auth_state.ready and auth_state.summary.email %}
+                <div class="flex" style="justify-content:space-between;">
+                    <span class="text-muted" style="font-size:0.875rem;">Account</span>
+                    <span style="font-size:0.875rem;">{{ auth_state.summary.email }}</span>
+                </div>
+            {% endif %}
+            {% if auth_state.ready and auth_state.summary.plan_type %}
+                <div class="flex" style="justify-content:space-between;">
+                    <span class="text-muted" style="font-size:0.875rem;">Plan</span>
+                    <span class="badge badge-navy">{{ auth_state.summary.plan_type }}</span>
+                </div>
+            {% endif %}
+            {% if auth_state.source_path %}
+                <p class="small">Auth source: {{ auth_state.source_path }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Quick Actions</div>
+        <form method="post" action="{% url 'generate_daily_schedule' %}" style="margin-bottom:1.25rem;">
+            {% csrf_token %}
+            {{ generate_form.as_p }}
+            <button type="submit" class="btn-orange" style="width:100%; justify-content:center;">
+                Generate Schedule
+            </button>
+        </form>
+        <hr class="divider">
+        <form method="post" action="{% url 'apply_patch' %}">
+            {% csrf_token %}
+            {{ update_form.as_p }}
+            <button type="submit" style="width:100%; justify-content:center; background:var(--cream); color:var(--navy); border:1px solid var(--border-strong);">
+                Apply Update &amp; Replan
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="grid-2 mt-3">
+    <div class="card">
+        <div class="card-title">Upcoming Tasks</div>
         {% if upcoming_tasks %}
-            <ul>
+            <ul style="list-style:none; display:flex; flex-direction:column; gap:0.6rem;">
                 {% for task in upcoming_tasks %}
-                    <li>{{ task.title }}{% if task.due_datetime %} - {{ task.due_datetime }}{% endif %}</li>
+                    <li style="display:flex; justify-content:space-between; align-items:center; font-size:0.9rem;">
+                        <span>{{ task.title }}</span>
+                        {% if task.due_datetime %}
+                            <span class="badge badge-gray">{{ task.due_datetime }}</span>
+                        {% endif %}
+                    </li>
                 {% endfor %}
             </ul>
         {% else %}
-            <p>No tasks yet.</p>
+            <p class="text-muted" style="font-size:0.9rem;">No tasks yet.</p>
         {% endif %}
-    </article>
-    <article>
-        <h3>Today's Blocks</h3>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Today's Blocks</div>
         {% if today_blocks %}
-            <ul>
+            <ul style="list-style:none; display:flex; flex-direction:column; gap:0.6rem;">
                 {% for block in today_blocks %}
-                    <li>{{ block.start_datetime|date:"H:i" }}-{{ block.end_datetime|date:"H:i" }} {{ block.title }}</li>
+                    <li style="display:flex; gap:0.75rem; align-items:center; font-size:0.9rem;">
+                        <span class="badge badge-navy" style="font-variant-numeric:tabular-nums; min-width:90px; text-align:center;">
+                            {{ block.start_datetime|date:"H:i" }}–{{ block.end_datetime|date:"H:i" }}
+                        </span>
+                        <span>{{ block.title }}</span>
+                    </li>
                 {% endfor %}
             </ul>
         {% else %}
-            <p>No schedule generated for today.</p>
+            <p class="text-muted" style="font-size:0.9rem;">No schedule generated for today.</p>
         {% endif %}
-    </article>
+    </div>
 </div>
 {% endblock %}

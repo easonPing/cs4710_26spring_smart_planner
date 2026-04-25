@@ -1,12 +1,20 @@
 {% extends "planner/base.html" %}
 
 {% block content %}
-<h1>Profile</h1>
-<p>Configure your study window, sleep, meals, and replanning freeze horizon.</p>
+<div class="page-header">
+    <h1>Profile</h1>
+    <p>Configure your study window, sleep schedule, meals, and replanning freeze horizon.</p>
+</div>
 
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Save Profile</button>
-</form>
+<div style="max-width: 680px;">
+    <div class="card">
+        <div class="card-title">Planner Preferences</div>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <hr class="divider">
+            <button type="submit" class="btn-orange">Save Profile</button>
+        </form>
+    </div>
+</div>
 {% endblock %}

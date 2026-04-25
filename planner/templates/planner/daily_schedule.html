@@ -1,90 +1,137 @@
 {% extends "planner/base.html" %}
 
 {% block content %}
-<h1>Daily Schedule</h1>
-<p>Date: {{ target_date }}</p>
+<div class="page-header">
+    <h1>Daily Schedule</h1>
+    <p>Date: {{ target_date }}</p>
+</div>
 
-<div class="grid-2">
-    <article>
-        <h3>Generate Schedule</h3>
-        <form method="post" action="{% url 'generate_daily_schedule' %}">
+<div class="grid-2" style="margin-bottom:1.5rem;">
+    <div class="card">
+        <div class="card-title">Controls</div>
+        <p class="section-label">Generate Schedule</p>
+        <form method="post" action="{% url 'generate_daily_schedule' %}" style="margin-bottom:1.25rem;">
             {% csrf_token %}
             {{ generate_form.as_p }}
-            <button type="submit">Generate</button>
+            <button type="submit" class="btn-orange">Generate</button>
         </form>
-        <h3>Apply Update</h3>
+        <hr class="divider">
+        <p class="section-label">Apply Update</p>
         <form method="post" action="{% url 'apply_patch' %}">
             {% csrf_token %}
             {{ update_form.as_p }}
-            <button type="submit">Replan</button>
+            <button type="submit" class="btn btn-secondary">Replan</button>
         </form>
         {% if latest_version %}
-            <p>Latest saved version: {{ latest_version.version }}</p>
+            <p class="small mt-1">Latest saved version: <strong>{{ latest_version.version }}</strong></p>
         {% endif %}
-        <p>{{ summary }}</p>
-    </article>
-    <article>
-        <h3>Metrics</h3>
-        <div class="metric-card">Hard conflicts: {{ metrics.hard_conflict_count }}</div>
-        <div class="metric-card">Deadline buffer minutes: {{ metrics.deadline_buffer_minutes }}</div>
-        <div class="metric-card">Fragmentation count: {{ metrics.fragmentation_count }}</div>
-        <div class="metric-card">Weighted completion: {{ metrics.weighted_completion_score }}</div>
-    </article>
+        {% if summary %}
+            <p class="small mt-1">{{ summary }}</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="card-title">Schedule Metrics</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+            <div class="metric-card">
+                <div class="metric-label">Hard Conflicts</div>
+                <div class="metric-value" style="color:{% if metrics.hard_conflict_count > 0 %}var(--error){% else %}var(--success){% endif %}">
+                    {{ metrics.hard_conflict_count }}
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Deadline Buffer</div>
+                <div class="metric-value">{{ metrics.deadline_buffer_minutes }}<span style="font-size:0.9rem; font-weight:400; color:var(--text-muted);"> min</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Fragmentation</div>
+                <div class="metric-value">{{ metrics.fragmentation_count }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Weighted Completion</div>
+                <div class="metric-value">{{ metrics.weighted_completion_score }}</div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="grid-2">
-    <article class="calendar-panel">
+    <div class="card calendar-panel">
         <div id="planner-calendar"></div>
-    </article>
-    <article>
-        <h3>Candidate Tasks</h3>
-        {% if candidate_tasks %}
-            <ul>
-                {% for task in candidate_tasks %}
-                    <li>
-                        {{ task.title }}
-                        {% if task.due_datetime %}- due {{ task.due_datetime|date:"M j, g:i a" }}{% endif %}
-                        ({{ task.estimated_minutes }} min, {{ task.priority }})
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:1.25rem;">
+        <div class="card">
+            <div class="card-title">Scheduled Blocks</div>
+            {% if schedule_blocks %}
+                <ul style="list-style:none; display:flex; flex-direction:column; gap:0.5rem;">
+                    {% for block in schedule_blocks %}
+                        <li style="display:flex; gap:0.75rem; align-items:center; font-size:0.875rem;">
+                            <span class="badge badge-navy" style="font-variant-numeric:tabular-nums; white-space:nowrap;">
+                                {{ block.start_datetime|date:"H:i" }}–{{ block.end_datetime|date:"H:i" }}
+                            </span>
+                            <span>{{ block.title }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted" style="font-size:0.9rem;">No generated task blocks for this date.</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <div class="card-title">Fixed Events</div>
+            {% if fixed_events %}
+                <ul style="list-style:none; display:flex; flex-direction:column; gap:0.5rem;">
+                    {% for event in fixed_events %}
+                        <li style="display:flex; gap:0.75rem; align-items:center; font-size:0.875rem;">
+                            <span class="badge badge-orange" style="font-variant-numeric:tabular-nums; white-space:nowrap;">
+                                {{ event.start_datetime|date:"H:i" }}–{{ event.end_datetime|date:"H:i" }}
+                            </span>
+                            <span>{{ event.title }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted" style="font-size:0.9rem;">No imported fixed events.</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <div class="card-title">Candidate Tasks</div>
+            {% if candidate_tasks %}
+                <ul style="list-style:none; display:flex; flex-direction:column; gap:0.5rem;">
+                    {% for task in candidate_tasks %}
+                        <li style="font-size:0.875rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <strong>{{ task.title }}</strong>
+                                <span class="badge badge-gray">{{ task.estimated_minutes }} min</span>
+                            </div>
+                            {% if task.due_datetime %}
+                                <div class="small">Due {{ task.due_datetime|date:"M j, g:i a" }} · {{ task.priority }}</div>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted" style="font-size:0.9rem;">No candidate tasks selected for this date.</p>
+            {% endif %}
+        </div>
+
+        {% if unscheduled_tasks %}
+        <div class="card" style="border-color:#f5c2c2;">
+            <div class="card-title" style="color:var(--error);">Unscheduled Tasks</div>
+            <ul style="list-style:none; display:flex; flex-direction:column; gap:0.4rem;">
+                {% for task in unscheduled_tasks %}
+                    <li style="display:flex; justify-content:space-between; font-size:0.875rem;">
+                        <span>{{ task.title }}</span>
+                        <span class="badge badge-red">{{ task.estimated_minutes }} min</span>
                     </li>
                 {% endfor %}
             </ul>
-        {% else %}
-            <p>No candidate tasks were selected for this date.</p>
+        </div>
         {% endif %}
-
-        <h3>Blocks</h3>
-        {% if schedule_blocks %}
-            <ul>
-                {% for block in schedule_blocks %}
-                    <li>{{ block.start_datetime|date:"H:i" }}-{{ block.end_datetime|date:"H:i" }} {{ block.title }}</li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>No generated task blocks for this date.</p>
-        {% endif %}
-
-        <h3>Unscheduled Candidate Tasks</h3>
-        {% if unscheduled_tasks %}
-            <ul>
-                {% for task in unscheduled_tasks %}
-                    <li>{{ task.title }} ({{ task.estimated_minutes }} min)</li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>All selected tasks were assigned blocks for this date.</p>
-        {% endif %}
-
-        <h3>Fixed Events</h3>
-        {% if fixed_events %}
-            <ul>
-                {% for event in fixed_events %}
-                    <li>{{ event.start_datetime|date:"H:i" }}-{{ event.end_datetime|date:"H:i" }} {{ event.title }}</li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>No imported fixed events.</p>
-        {% endif %}
-    </article>
+    </div>
 </div>
 
 <script>
@@ -97,6 +144,11 @@ document.addEventListener("DOMContentLoaded", function() {
         allDaySlot: false,
         events: eventFeed,
         height: 650,
+        headerToolbar: {
+            left: 'prev,next',
+            center: 'title',
+            right: 'timeGridDay'
+        },
     });
     calendar.render();
 });

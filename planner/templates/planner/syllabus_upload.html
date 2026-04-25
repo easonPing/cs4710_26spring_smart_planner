@@ -1,12 +1,27 @@
 {% extends "planner/base.html" %}
 
 {% block content %}
-<h1>Syllabus Upload</h1>
-<p>Upload a PDF or DOCX file to extract task candidates.</p>
+<div class="page-header">
+    <h1>Syllabus Upload</h1>
+    <p>Upload a PDF or DOCX file to automatically extract task candidates from your syllabus.</p>
+</div>
 
-<form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Extract Tasks</button>
-</form>
+<div style="max-width: 640px;">
+    <div class="card">
+        <div class="card-title">Upload Syllabus</div>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <hr class="divider">
+            <button type="submit" class="btn-orange">Extract Tasks</button>
+        </form>
+    </div>
+
+    <div class="card mt-2" style="background:var(--cream); border-color:var(--border);">
+        <p class="small">
+            <strong>Supported formats:</strong> PDF and DOCX.<br>
+            Extracted tasks will appear in the <a href="{% url 'task_review' %}">Task Review Queue</a> for confirmation before becoming active.
+        </p>
+    </div>
+</div>
 {% endblock %}

@@ -1,45 +1,24 @@
 {% extends "planner/base.html" %}
 
 {% block content %}
-<h1>ICS Upload</h1>
-<form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="upload_ics">
-    {{ form.as_p }}
-    <button type="submit">Import Calendar</button>
-</form>
+<div class="page-header">
+    <h1>Calendar Import</h1>
+    <p>Upload an ICS file to import your course and event schedule.</p>
+</div>
 
-<div class="grid-2">
-    <article>
-        <h2>Meeting Summary</h2>
-        <p>Imported ICS events are filtered to daytime meetings only, then grouped by course title.</p>
-        {% if course_summaries %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Time</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in course_summaries %}
-                        <tr>
-                            <td>{{ row.title }}</td>
-                            <td>
-                                {% for label in row.times %}
-                                    <div>{{ label }}</div>
-                                {% endfor %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>No calendar events imported yet.</p>
-        {% endif %}
-    </article>
-    <article>
-        <h2>{% if edit_event %}Edit Event{% else %}Add Event{% endif %}</h2>
+<div class="grid-2" style="margin-bottom:1.5rem;">
+    <div class="card">
+        <div class="card-title">Upload ICS File</div>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upload_ics">
+            {{ form.as_p }}
+            <button type="submit" class="btn-orange" style="margin-top:0.5rem;">Import Calendar</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="card-title">{% if edit_event %}Edit Event{% else %}Add Event Manually{% endif %}</div>
         <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="{% if edit_event %}update_event{% else %}create_event{% endif %}">
@@ -49,55 +28,91 @@
             {{ event_form.as_p }}
             <button type="submit">{% if edit_event %}Update Event{% else %}Create Event{% endif %}</button>
         </form>
-    </article>
+    </div>
 </div>
 
-<h2>Events</h2>
-{% if recent_events %}
-    <table>
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Start</th>
-                <th>End</th>
-                <th>Type</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for event in recent_events %}
+{% if course_summaries %}
+<div class="card mb-2">
+    <div class="card-title">Meeting Summary</div>
+    <p class="small mb-2">Imported ICS events filtered to daytime meetings, grouped by course.</p>
+    <div class="table-wrap">
+        <table>
+            <thead>
                 <tr>
-                    <td>{{ event.title }}</td>
-                    <td>
-                        {% if event.recurrence_weekdays %}
-                            Weekly {{ event.recurrence_weekday_labels|join:", " }} ·
-                            {{ event.start_datetime|date:"H:i" }}–{{ event.end_datetime|date:"H:i" }}
-                        {% else %}
-                            {{ event.start_datetime }}
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if event.recurrence_weekdays %}
-                            {{ event.end_datetime|date:"H:i" }}
-                        {% else %}
-                            {{ event.end_datetime }}
-                        {% endif %}
-                    </td>
-                    <td>{{ event.event_type }}</td>
-                    <td>
-                        <a href="{% url 'calendar_upload' %}?edit={{ event.id }}">Edit</a>
-                        <form method="post" style="display:inline-block; margin-left: 0.5rem;">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="delete_event">
-                            <input type="hidden" name="event_id" value="{{ event.id }}">
-                            <button type="submit" class="secondary">Delete</button>
-                        </form>
-                    </td>
+                    <th>Course Title</th>
+                    <th>Meeting Times</th>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-{% else %}
-    <p>No events stored.</p>
+            </thead>
+            <tbody>
+                {% for row in course_summaries %}
+                    <tr>
+                        <td><strong>{{ row.title }}</strong></td>
+                        <td>
+                            {% for label in row.times %}
+                                <div class="small">{{ label }}</div>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endif %}
+
+<div class="card">
+    <div class="card-title">All Events</div>
+    {% if recent_events %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Type</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in recent_events %}
+                        <tr>
+                            <td><strong>{{ event.title }}</strong></td>
+                            <td>
+                                {% if event.recurrence_weekdays %}
+                                    <span class="badge badge-navy">Weekly</span>
+                                    {{ event.recurrence_weekday_labels|join:", " }} ·
+                                    {{ event.start_datetime|date:"H:i" }}–{{ event.end_datetime|date:"H:i" }}
+                                {% else %}
+                                    {{ event.start_datetime }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if event.recurrence_weekdays %}
+                                    {{ event.end_datetime|date:"H:i" }}
+                                {% else %}
+                                    {{ event.end_datetime }}
+                                {% endif %}
+                            </td>
+                            <td><span class="badge badge-gray">{{ event.event_type }}</span></td>
+                            <td>
+                                <div class="flex">
+                                    <a href="{% url 'calendar_upload' %}?edit={{ event.id }}" class="btn btn-sm btn-secondary">Edit</a>
+                                    <form method="post" class="inline-form">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="delete_event">
+                                        <input type="hidden" name="event_id" value="{{ event.id }}">
+                                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-muted" style="font-size:0.9rem;">No events stored yet.</p>
+    {% endif %}
+</div>
 {% endblock %}

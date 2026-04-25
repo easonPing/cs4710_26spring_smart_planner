@@ -1,64 +1,105 @@
 {% extends "planner/base.html" %}
 
 {% block content %}
-<h1>Tasks</h1>
+<div class="page-header">
+    <h1>Tasks</h1>
+    <p>Manage your study tasks, deadlines, and priorities.</p>
+</div>
 
-<div class="grid-2">
-    <article>
-        <h3>{% if edit_task %}Edit Task{% else %}Add Task{% endif %}</h3>
+<div class="grid-2" style="margin-bottom:1.5rem;">
+    <div class="card">
+        <div class="card-title">{% if edit_task %}Edit Task{% else %}Add New Task{% endif %}</div>
         <form method="post">
             {% csrf_token %}
             {% if edit_task %}
                 <input type="hidden" name="task_id" value="{{ edit_task.id }}">
             {% endif %}
             {{ form.as_p }}
-            <button type="submit">{% if edit_task %}Update{% else %}Create{% endif %}</button>
+            <hr class="divider">
+            <button type="submit" class="btn-orange">{% if edit_task %}Update Task{% else %}Create Task{% endif %}</button>
         </form>
-    </article>
-    <article>
-        <h3>Task Review Queue</h3>
-        <p>{{ tasks|length }} total tasks.</p>
-        <a href="{% url 'task_review' %}" role="button">Open Review Queue</a>
-    </article>
+    </div>
+
+    <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
+        <div>
+            <div class="card-title">Task Review Queue</div>
+            <p style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:1rem;">
+                Low-confidence syllabus extractions awaiting your review before becoming active tasks.
+            </p>
+            <div class="metric-card mb-2">
+                <div class="metric-label">Total Tasks</div>
+                <div class="metric-value">{{ tasks|length }}</div>
+            </div>
+        </div>
+        <a href="{% url 'task_review' %}" class="btn btn-orange" style="width:100%; justify-content:center; margin-top:1rem;">
+            Open Review Queue
+        </a>
+    </div>
 </div>
 
-<h2>All Tasks</h2>
-{% if tasks %}
-    <table>
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Due</th>
-                <th>Minutes</th>
-                <th>Priority</th>
-                <th>Status</th>
-                <th>Review</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for task in tasks %}
-                <tr>
-                    <td>{{ task.title }}</td>
-                    <td>{{ task.due_datetime|default:"-" }}</td>
-                    <td>{{ task.estimated_minutes }}</td>
-                    <td>{{ task.priority }}</td>
-                    <td>{{ task.status }}</td>
-                    <td>{% if task.needs_review %}Needs review{% else %}Ready{% endif %}</td>
-                    <td>
-                        <a href="{% url 'task_list' %}?edit={{ task.id }}">Edit</a>
-                        <form method="post" style="display:inline-block; margin-left: 0.5rem;">
-                            {% csrf_token %}
-                            <input type="hidden" name="task_id" value="{{ task.id }}">
-                            <input type="hidden" name="action" value="delete">
-                            <button type="submit" class="secondary">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-{% else %}
-    <p>No tasks available.</p>
-{% endif %}
+<div class="card">
+    <div class="card-title">All Tasks</div>
+    {% if tasks %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Due</th>
+                        <th>Est. Min</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Review</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in tasks %}
+                        <tr>
+                            <td><strong>{{ task.title }}</strong></td>
+                            <td>
+                                {% if task.due_datetime %}
+                                    <span style="font-size:0.85rem;">{{ task.due_datetime|default:"-" }}</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ task.estimated_minutes }}</td>
+                            <td>
+                                {% if task.priority == "high" %}
+                                    <span class="badge badge-red">{{ task.priority }}</span>
+                                {% elif task.priority == "medium" %}
+                                    <span class="badge badge-orange">{{ task.priority }}</span>
+                                {% else %}
+                                    <span class="badge badge-gray">{{ task.priority }}</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge badge-navy">{{ task.status }}</span></td>
+                            <td>
+                                {% if task.needs_review %}
+                                    <span class="badge badge-orange">Needs review</span>
+                                {% else %}
+                                    <span class="badge badge-green">Ready</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="flex">
+                                    <a href="{% url 'task_list' %}?edit={{ task.id }}" class="btn btn-sm btn-secondary">Edit</a>
+                                    <form method="post" class="inline-form">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="task_id" value="{{ task.id }}">
+                                        <input type="hidden" name="action" value="delete">
+                                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-muted" style="font-size:0.9rem;">No tasks yet. Add one above or upload a syllabus to extract them automatically.</p>
+    {% endif %}
+</div>
 {% endblock %}

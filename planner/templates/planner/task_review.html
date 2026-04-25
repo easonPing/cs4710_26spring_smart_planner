@@ -1,41 +1,65 @@
 {% extends "planner/base.html" %}
 
 {% block content %}
-<h1>Task Review</h1>
-<p>Low-confidence syllabus tasks can be corrected here before becoming active tasks.</p>
+<div class="page-header">
+    <h1>Task Review</h1>
+    <p>Low-confidence syllabus extractions — correct and approve before they become active tasks.</p>
+</div>
 
 {% if review_tasks %}
-    {% for task in review_tasks %}
-        <article>
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="task_id" value="{{ task.id }}">
-                <label>
-                    Title
-                    <input type="text" name="title" value="{{ task.title }}">
-                </label>
-                <label>
-                    Course
-                    <input type="text" name="course_name" value="{{ task.course_name }}">
-                </label>
-                <label>
-                    Due datetime
-                    <input type="datetime-local" name="due_datetime" value="{% if task.due_datetime %}{{ task.due_datetime|date:'Y-m-d\\TH:i' }}{% endif %}">
-                </label>
-                <label>
-                    Estimated minutes
-                    <input type="number" name="estimated_minutes" value="{{ task.estimated_minutes }}">
-                </label>
-                <p class="small">Excerpt: {{ task.raw_excerpt }}</p>
-                <div>
-                    <button type="submit" name="action" value="save">Save and Approve</button>
-                    <button type="submit" name="action" value="approve" class="secondary">Approve As-Is</button>
-                    <button type="submit" name="action" value="reject" class="contrast">Reject</button>
+    <div style="display:flex; flex-direction:column; gap:1.25rem;">
+        {% for task in review_tasks %}
+            <div class="card">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+                    <span class="badge badge-orange">Needs Review</span>
+                    <span class="small">ID #{{ task.id }}</span>
                 </div>
-            </form>
-        </article>
-    {% endfor %}
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="task_id" value="{{ task.id }}">
+
+                    <div class="grid-2" style="gap:1rem; margin-bottom:1rem;">
+                        <div>
+                            <label for="title_{{ task.id }}">Title</label>
+                            <input type="text" id="title_{{ task.id }}" name="title" value="{{ task.title }}">
+                        </div>
+                        <div>
+                            <label for="course_{{ task.id }}">Course</label>
+                            <input type="text" id="course_{{ task.id }}" name="course_name" value="{{ task.course_name }}">
+                        </div>
+                        <div>
+                            <label for="due_{{ task.id }}">Due Date &amp; Time</label>
+                            <input type="datetime-local" id="due_{{ task.id }}" name="due_datetime"
+                                value="{% if task.due_datetime %}{{ task.due_datetime|date:'Y-m-d\TH:i' }}{% endif %}">
+                        </div>
+                        <div>
+                            <label for="mins_{{ task.id }}">Estimated Minutes</label>
+                            <input type="number" id="mins_{{ task.id }}" name="estimated_minutes" value="{{ task.estimated_minutes }}">
+                        </div>
+                    </div>
+
+                    {% if task.raw_excerpt %}
+                        <div style="background:var(--cream); border:1px solid var(--border); border-radius:var(--radius-sm); padding:0.75rem 1rem; margin-bottom:1rem;">
+                            <p class="small" style="margin-bottom:0.25rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Source Excerpt</p>
+                            <p style="font-size:0.875rem; color:var(--text-secondary); font-style:italic;">{{ task.raw_excerpt }}</p>
+                        </div>
+                    {% endif %}
+
+                    <hr class="divider">
+                    <div class="flex">
+                        <button type="submit" name="action" value="save" class="btn-orange">Save &amp; Approve</button>
+                        <button type="submit" name="action" value="approve" class="btn btn-secondary">Approve As-Is</button>
+                        <button type="submit" name="action" value="reject" class="btn btn-danger">Reject</button>
+                    </div>
+                </form>
+            </div>
+        {% endfor %}
+    </div>
 {% else %}
-    <p>No tasks need review.</p>
+    <div class="card" style="text-align:center; padding:3rem 2rem;">
+        <p style="font-size:1.1rem; color:var(--text-muted); margin-bottom:0.5rem;">All caught up!</p>
+        <p class="small">No tasks need review right now.</p>
+        <a href="{% url 'task_list' %}" class="btn btn-secondary" style="margin-top:1.25rem; display:inline-flex;">View All Tasks</a>
+    </div>
 {% endif %}
 {% endblock %}

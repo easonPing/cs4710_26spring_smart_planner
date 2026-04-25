@@ -4,39 +4,428 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>UVA Smart Planner</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.css">
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>
     <style>
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        :root {
+            --navy: #232D4B;
+            --navy-light: #2e3d60;
+            --orange: #E57200;
+            --orange-light: #f5833a;
+            --cream: #FAF8F4;
+            --surface: #FFFFFF;
+            --border: #E8E4DC;
+            --border-strong: #D0C9BD;
+            --text-primary: #1a1a1a;
+            --text-secondary: #5a5a5a;
+            --text-muted: #8a8a8a;
+            --success: #2E7D32;
+            --success-bg: #E8F5E9;
+            --error: #C62828;
+            --error-bg: #FFEBEE;
+            --warning: #E65100;
+            --warning-bg: #FFF3E0;
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --shadow-sm: 0 1px 3px rgba(35,45,75,0.08);
+            --shadow-md: 0 4px 16px rgba(35,45,75,0.10);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+            background: var(--cream);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* NAV */
+        .site-nav {
+            background: var(--navy);
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 60px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 12px rgba(35,45,75,0.18);
+        }
+        .site-nav .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--orange);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .brand-icon svg { width: 18px; height: 18px; fill: white; }
+        .brand-name {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.1rem;
+            color: white;
+            letter-spacing: 0.01em;
+        }
+        .brand-sub {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.5);
+            font-weight: 300;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .nav-links {
+            display: flex;
+            gap: 0.25rem;
+            list-style: none;
+        }
+        .nav-links a {
+            color: rgba(255,255,255,0.72);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 400;
+            padding: 0.45rem 0.85rem;
+            border-radius: var(--radius-sm);
+            transition: background 0.15s, color 0.15s;
+            white-space: nowrap;
+        }
+        .nav-links a:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        .nav-links a.active {
+            background: var(--orange);
+            color: white;
+        }
+
+        /* MAIN CONTAINER */
+        .main-wrapper {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 2.5rem 2rem 4rem;
+        }
+
+        /* PAGE HEADER */
+        .page-header {
+            margin-bottom: 2rem;
+        }
+        .page-header h1 {
+            font-family: 'DM Serif Display', serif;
+            font-size: 2rem;
+            color: var(--navy);
+            font-weight: 400;
+            line-height: 1.2;
+        }
+        .page-header p {
+            color: var(--text-secondary);
+            margin-top: 0.4rem;
+            font-size: 0.95rem;
+        }
+
+        /* CARDS */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+        .card-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.1rem;
+            font-weight: 400;
+            color: var(--navy);
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* GRID */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+        @media (max-width: 768px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            .site-nav { padding: 0 1rem; }
+            .nav-links { gap: 0; }
+            .nav-links a { padding: 0.4rem 0.5rem; font-size: 0.8rem; }
+        }
+
+        /* FORMS */
+        label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.35rem;
+        }
+        input[type="text"],
+        input[type="email"],
+        input[type="number"],
+        input[type="date"],
+        input[type="datetime-local"],
+        input[type="time"],
+        input[type="file"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.6rem 0.85rem;
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            background: var(--surface);
+            transition: border-color 0.15s, box-shadow 0.15s;
+            outline: none;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--navy);
+            box-shadow: 0 0 0 3px rgba(35,45,75,0.1);
+        }
+        .form-row { margin-bottom: 1rem; }
+        /* Django's as_p renders <p> around fields */
+        form p { margin-bottom: 0.9rem; }
+        form p label { display: block; }
+
+        /* BUTTONS */
+        button, .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0.55rem 1.25rem;
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+            text-decoration: none;
+        }
+        button[type="submit"], .btn-primary {
+            background: var(--navy);
+            color: white;
+        }
+        button[type="submit"]:hover, .btn-primary:hover {
+            background: var(--navy-light);
+            box-shadow: var(--shadow-sm);
+        }
+        button[type="submit"]:active { transform: scale(0.98); }
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-strong);
+        }
+        .btn-secondary:hover { background: var(--cream); }
+        .btn-danger {
+            background: var(--error-bg);
+            color: var(--error);
+            border: 1px solid #f5c2c2;
+        }
+        .btn-danger:hover { background: #fdd; }
+        .btn-orange {
+            background: var(--orange);
+            color: white;
+        }
+        .btn-orange:hover { background: var(--orange-light); }
+        .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
+
+        /* TABLES */
+        .table-wrap { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+        thead th {
+            text-align: left;
+            padding: 0.65rem 0.9rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+        }
+        tbody td {
+            padding: 0.7rem 0.9rem;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+            color: var(--text-primary);
+        }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: var(--cream); }
+
+        /* MESSAGES */
+        .messages { margin-bottom: 1.5rem; }
+        .message {
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-md);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .message.success { background: var(--success-bg); color: var(--success); border: 1px solid #a5d6a7; }
+        .message.error { background: var(--error-bg); color: var(--error); border: 1px solid #ef9a9a; }
+        .message.warning { background: var(--warning-bg); color: var(--warning); border: 1px solid #ffcc80; }
+        .message.info { background: #E3F2FD; color: #1565C0; border: 1px solid #90caf9; }
+
+        /* BADGES */
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.55rem;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+        .badge-navy { background: #eef0f7; color: var(--navy); }
+        .badge-orange { background: #FFF0E3; color: var(--orange); }
+        .badge-green { background: var(--success-bg); color: var(--success); }
+        .badge-red { background: var(--error-bg); color: var(--error); }
+        .badge-gray { background: #F0EEEA; color: var(--text-secondary); }
+
+        /* METRIC CARDS */
+        .metric-card {
+            background: var(--cream);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.25rem;
+        }
+        .metric-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-bottom: 0.35rem;
+        }
+        .metric-value {
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: var(--navy);
+            line-height: 1;
+        }
+
+        /* STAT ROW (dashboard) */
+        .stat-row {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }
+        .stat-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 0.4rem 1rem;
+            font-size: 0.875rem;
+        }
+        .stat-pill strong { color: var(--navy); }
+        .stat-pill span { color: var(--text-muted); font-size: 0.8rem; }
+
+        /* SECTION LABELS */
+        .section-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+        }
+
+        /* CALENDAR PANEL */
         .calendar-panel { min-height: 650px; }
-        .small { font-size: 0.9rem; color: #666; }
-        .metric-card { padding: 1rem; border: 1px solid #ddd; border-radius: 0.5rem; }
+        .fc { font-family: 'DM Sans', sans-serif !important; }
+        .fc .fc-toolbar-title { font-family: 'DM Serif Display', serif; font-size: 1.3rem; }
+        .fc .fc-button { background: var(--navy) !important; border-color: var(--navy) !important; font-family: inherit !important; }
+        .fc .fc-event { border-radius: 4px !important; font-size: 0.8rem !important; }
+
+        /* UTILS */
+        .small { font-size: 0.82rem; color: var(--text-muted); }
+        .text-muted { color: var(--text-muted); }
+        .mt-1 { margin-top: 0.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .mt-3 { margin-top: 1.5rem; }
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .divider { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+        .inline-form { display: inline-block; margin: 0; }
+        .flex { display: flex; align-items: center; gap: 0.5rem; }
+
+        a { color: var(--navy); }
+        a:hover { color: var(--orange); }
+
+        /* FullCalendar override */
+        .fc .fc-col-header-cell-cushion,
+        .fc .fc-daygrid-day-number { color: var(--navy); }
     </style>
 </head>
 <body>
-<main class="container">
-    <nav>
-        <ul>
-            <li><strong>UVA Smart Planner</strong></li>
-        </ul>
-        <ul>
-            <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
-            <li><a href="{% url 'profile' %}">Profile</a></li>
-            <li><a href="{% url 'calendar_upload' %}">ICS Upload</a></li>
-            <li><a href="{% url 'syllabus_upload' %}">Syllabus Upload</a></li>
-            <li><a href="{% url 'task_list' %}">Tasks</a></li>
-            <li><a href="{% url 'daily_schedule' %}">Schedule</a></li>
-            <li><a href="{% url 'replan_logs' %}">Replans</a></li>
-        </ul>
-    </nav>
+
+<nav class="site-nav">
+    <a href="{% url 'dashboard' %}" class="brand">
+        <div class="brand-icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M8 2v3H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3V2H8zm0 2h8v3H8V4zM5 9h14v10H5V9zm2 2v2h2v-2H7zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2zm-8 4v2h2v-2H7zm4 0v2h2v-2h-2z"/></svg>
+        </div>
+        <div>
+            <div class="brand-name">Smart Planner</div>
+            <div class="brand-sub">UVA Academic</div>
+        </div>
+    </a>
+    <ul class="nav-links">
+        <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li><a href="{% url 'profile' %}">Profile</a></li>
+        <li><a href="{% url 'calendar_upload' %}">Calendar</a></li>
+        <li><a href="{% url 'syllabus_upload' %}">Syllabus</a></li>
+        <li><a href="{% url 'task_list' %}">Tasks</a></li>
+        <li><a href="{% url 'daily_schedule' %}">Schedule</a></li>
+        <li><a href="{% url 'replan_logs' %}">Replans</a></li>
+    </ul>
+</nav>
+
+<div class="main-wrapper">
     {% if messages %}
-        {% for message in messages %}
-            <article class="{{ message.tags }}">{{ message }}</article>
-        {% endfor %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="message {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
     {% endif %}
     {% block content %}{% endblock %}
-</main>
+</div>
+
 </body>
 </html>
