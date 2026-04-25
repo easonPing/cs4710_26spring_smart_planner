@@ -1,4 +1,5 @@
-from datetime import time, timedelta
+from dataclasses import dataclass
+from datetime import datetime, time, timedelta
 from itertools import groupby
 
 from django.conf import settings
@@ -8,6 +9,48 @@ from planner.models import CalendarEvent
 from planner.utils import combine_date_time
 
 from .ics_parser import deduplicate_events, expand_recurring_events, parse_ics
+
+
+@dataclass
+class FixedEventDayOccurrence:
+    event: CalendarEvent
+    start_datetime: datetime
+    end_datetime: datetime
+
+    @property
+    def title(self):
+        return self.event.title
+
+    @property
+    def event_type(self):
+        return self.event.event_type
+
+    def to_fullcalendar_event(self):
+        return self.event.to_fullcalendar_event(self.start_datetime, self.end_datetime)
+
+
+def fixed_event_occurrences_for_date(target_date):
+    rows = []
+    for event in CalendarEvent.objects.filter(is_fixed=True).order_by('start_datetime'):
+        occ = event.occurrence_on_date(target_date)
+        if occ:
+            start, end = occ
+            rows.append(FixedEventDayOccurrence(event=event, start_datetime=start, end_datetime=end))
+    return rows
+
+
+def dedupe_calendar_events_for_list(queryset):
+    """One row per ICS recurring series (shared external_uid); manual events stay as stored."""
+    seen_uid = set()
+    out = []
+    for event in queryset.order_by('external_uid', 'start_datetime', 'title'):
+        uid = (event.external_uid or '').strip()
+        if uid:
+            if uid in seen_uid:
+                continue
+            seen_uid.add(uid)
+        out.append(event)
+    return sorted(out, key=lambda e: (e.title.lower(), e.start_datetime))
 
 
 def import_ics_events(user, file_path):
@@ -33,14 +76,11 @@ def save_calendar_events(events):
                 "source": event_data.get("source", "ics"),
                 "location": event_data.get("location", ""),
                 "description": event_data.get("description", ""),
+                "recurrence_weekdays": event_data.get("recurrence_weekdays") or [],
             },
         )
         saved.append(event)
     return saved
-
-
-def get_fixed_events_for_date(date):
-    return CalendarEvent.objects.filter(start_datetime__date=date, is_fixed=True).order_by("start_datetime")
 
 
 def filter_imported_events(events, earliest_hour=7, earliest_minute=30, latest_hour=19, latest_minute=0):
@@ -65,9 +105,14 @@ def filter_imported_events(events, earliest_hour=7, earliest_minute=30, latest_h
 def _format_meeting_time(event):
     local_start = timezone.localtime(event.start_datetime)
     local_end = timezone.localtime(event.end_datetime)
-    weekday = local_start.strftime("%A")
     start = local_start.strftime("%I:%M %p").lstrip("0").replace(":00 ", " ")
     end = local_end.strftime("%I:%M %p").lstrip("0").replace(":00 ", " ")
+    rec = getattr(event, 'recurrence_weekdays', None) or []
+    if rec:
+        names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        days = ', '.join(names[d] for d in sorted(rec))
+        return f"{days} {start.lower()} - {end.lower()}"
+    weekday = local_start.strftime("%A")
     return f"{weekday} {start.lower()} - {end.lower()}"
 
 
@@ -97,12 +142,12 @@ def summarize_course_meetings(events):
 def build_blocked_slots(date, profile):
     blocked = [
         {
-            "start": event.start_datetime,
-            "end": event.end_datetime,
-            "block_type": event.event_type,
-            "title": event.title,
+            "start": row.start_datetime,
+            "end": row.end_datetime,
+            "block_type": row.event_type,
+            "title": row.title,
         }
-        for event in get_fixed_events_for_date(date)
+        for row in fixed_event_occurrences_for_date(date)
     ]
     day_start = combine_date_time(date, time(0, 0))
     day_end = day_start + timedelta(days=1)

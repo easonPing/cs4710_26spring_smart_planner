@@ -2,6 +2,16 @@ from django import forms
 
 from .models import CalendarEvent, Task, UserProfile
 
+WEEKDAY_CHOICES = [
+    (0, 'Monday'),
+    (1, 'Tuesday'),
+    (2, 'Wednesday'),
+    (3, 'Thursday'),
+    (4, 'Friday'),
+    (5, 'Saturday'),
+    (6, 'Sunday'),
+]
+
 
 class ICSUploadForm(forms.Form):
     ics_file = forms.FileField(help_text='Upload an ICS calendar file.')
@@ -31,6 +41,14 @@ class CalendarEventForm(forms.ModelForm):
     end_datetime = forms.DateTimeField(
         widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}),
     )
+    repeat_weekdays = forms.TypedMultipleChoiceField(
+        coerce=int,
+        choices=WEEKDAY_CHOICES,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label='Repeat weekly on',
+        help_text='Leave unchecked for a single occurrence on the start date.',
+    )
 
     class Meta:
         model = CalendarEvent
@@ -42,6 +60,18 @@ class CalendarEventForm(forms.ModelForm):
             'location',
             'description',
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk and self.instance.recurrence_weekdays:
+            self.initial.setdefault(
+                'repeat_weekdays',
+                [d for d in self.instance.recurrence_weekdays if isinstance(d, int) and 0 <= d <= 6],
+            )
+
+    def clean_repeat_weekdays(self):
+        days = self.cleaned_data.get('repeat_weekdays') or []
+        return sorted(set(days))
 
 
 class TaskManualForm(forms.ModelForm):

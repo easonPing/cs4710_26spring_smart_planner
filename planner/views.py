@@ -17,7 +17,13 @@ from .forms import (
     UserProfileForm,
 )
 from .models import CalendarEvent, ReplanLog, ScheduleBlock, Task, UserProfile
-from .services.calendar_service import build_blocked_slots, import_ics_events, summarize_course_meetings
+from .services.calendar_service import (
+    build_blocked_slots,
+    dedupe_calendar_events_for_list,
+    fixed_event_occurrences_for_date,
+    import_ics_events,
+    summarize_course_meetings,
+)
 from .services.candidate_selector import select_daily_candidates
 from .services.codex_auth import CodexOAuthProvider
 from .services.metrics import (
@@ -97,8 +103,13 @@ def calendar_upload_view(request):
         action = request.POST.get("action", "upload_ics")
         if action == "delete_event":
             event = get_object_or_404(CalendarEvent, pk=request.POST.get("event_id"))
-            event.delete()
-            messages.success(request, "Event deleted.")
+            uid = (event.external_uid or "").strip()
+            if uid:
+                CalendarEvent.objects.filter(external_uid=uid).delete()
+                messages.success(request, "Deleted imported recurring series.")
+            else:
+                event.delete()
+                messages.success(request, "Event deleted.")
             return redirect("calendar_upload")
         if action in {"create_event", "update_event"}:
             if request.POST.get("event_id"):
@@ -107,6 +118,7 @@ def calendar_upload_view(request):
             upload_form = ICSUploadForm()
             if event_form.is_valid():
                 event = event_form.save(commit=False)
+                event.recurrence_weekdays = event_form.cleaned_data.get("repeat_weekdays") or []
                 event.source = "manual" if action == "create_event" else event.source or "manual"
                 event.is_fixed = True
                 if action == "create_event":
@@ -135,8 +147,9 @@ def calendar_upload_view(request):
         if request.GET.get("edit"):
             edit_event = get_object_or_404(CalendarEvent, pk=request.GET["edit"])
         event_form = CalendarEventForm(instance=edit_event)
-    recent_events = CalendarEvent.objects.order_by("title", "start_datetime")
-    course_summaries = summarize_course_meetings(recent_events)
+    all_events = CalendarEvent.objects.order_by("title", "start_datetime")
+    course_summaries = summarize_course_meetings(list(all_events))
+    recent_events = dedupe_calendar_events_for_list(all_events)
     return render(
         request,
         "planner/calendar_upload.html",
@@ -309,11 +322,11 @@ def daily_schedule_view(request):
     target_date = datetime.fromisoformat(selected_date).date() if selected_date else timezone.localdate()
     profile = _get_profile()
     schedule_blocks = list(ScheduleBlock.objects.filter(schedule_date=target_date).order_by("start_datetime"))
-    fixed_events = list(CalendarEvent.objects.filter(start_datetime__date=target_date).order_by("start_datetime"))
+    fixed_events = fixed_event_occurrences_for_date(target_date)
     candidate_tasks = select_daily_candidates(target_date)
     scheduled_task_ids = {block.task_id for block in schedule_blocks if block.task_id}
     unscheduled_tasks = [task for task in candidate_tasks if task.id not in scheduled_task_ids]
-    event_feed = [event.to_fullcalendar_event() for event in fixed_events] + _serialize_schedule_events(schedule_blocks)
+    event_feed = [row.to_fullcalendar_event() for row in fixed_events] + _serialize_schedule_events(schedule_blocks)
     latest_version = latest_schedule_version(target_date.isoformat())
     metrics = {
         "hard_conflict_count": hard_conflict_count(schedule_blocks, fixed_events),

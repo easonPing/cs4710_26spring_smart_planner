@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.utils import timezone
 from icalendar.prop import vRecur
 
-from planner.models import Task, UserProfile
+from planner.models import CalendarEvent, Task, UserProfile
 from planner.services.calendar_service import build_blocked_slots, filter_imported_events, summarize_course_meetings
 from planner.services.candidate_selector import select_daily_candidates
 from planner.services.codex_auth import CodexAuthManager
@@ -61,7 +61,8 @@ class SchedulerServiceTests(TestCase):
         self.assertGreaterEqual(len(result["blocks"]), 1)
 
     def test_expand_recurring_events_accepts_local_until_with_aware_dtstart(self):
-        start = timezone.now().replace(hour=11, minute=0, second=0, microsecond=0)
+        tz = timezone.get_current_timezone()
+        start = timezone.make_aware(datetime(2026, 4, 1, 11, 0, 0), tz)
         event = {
             "title": "Weekly Lecture",
             "start_datetime": start,
@@ -79,6 +80,27 @@ class SchedulerServiceTests(TestCase):
 
         self.assertEqual(len(expanded), 3)
         self.assertTrue(all(item["start_datetime"].tzinfo is not None for item in expanded))
+
+    def test_manual_weekly_recurrence_blocks_matching_weekdays(self):
+        tz = timezone.get_current_timezone()
+        monday = timezone.make_aware(datetime(2026, 4, 6, 10, 0, 0), tz)
+        CalendarEvent.objects.create(
+            title="Study group",
+            start_datetime=monday,
+            end_datetime=monday + timedelta(hours=1),
+            event_type="meeting",
+            is_fixed=True,
+            source="manual",
+            external_uid="",
+            recurrence_weekdays=[0, 2],
+        )
+        # 2026-04-08 is Wednesday
+        wed_apr_8 = datetime(2026, 4, 8).date()
+        blocked_titles = [b["title"] for b in build_blocked_slots(wed_apr_8, self.profile) if b["title"] == "Study group"]
+        self.assertEqual(len(blocked_titles), 1)
+        tuesday_apr_7 = datetime(2026, 4, 7).date()
+        blocked_tue = [b for b in build_blocked_slots(tuesday_apr_7, self.profile) if b["title"] == "Study group"]
+        self.assertEqual(blocked_tue, [])
 
     def test_filter_imported_events_drops_out_of_hours_and_all_day_events(self):
         tz = timezone.get_current_timezone()

@@ -68,8 +68,21 @@
             {% for event in recent_events %}
                 <tr>
                     <td>{{ event.title }}</td>
-                    <td>{{ event.start_datetime }}</td>
-                    <td>{{ event.end_datetime }}</td>
+                    <td>
+                        {% if event.recurrence_weekdays %}
+                            Weekly {{ event.recurrence_weekday_labels|join:", " }} ·
+                            {{ event.start_datetime|date:"H:i" }}–{{ event.end_datetime|date:"H:i" }}
+                        {% else %}
+                            {{ event.start_datetime }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if event.recurrence_weekdays %}
+                            {{ event.end_datetime|date:"H:i" }}
+                        {% else %}
+                            {{ event.end_datetime }}
+                        {% endif %}
+                    </td>
                     <td>{{ event.event_type }}</td>
                     <td>
                         <a href="{% url 'calendar_upload' %}?edit={{ event.id }}">Edit</a>

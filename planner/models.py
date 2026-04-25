@@ -4,6 +4,7 @@ from django.db import models
 from django.utils import timezone
 
 from .constants import BLOCK_TYPE_CHOICES, EVENT_TYPE_CHOICES, PATCH_TYPE_CHOICES, PRIORITY_CHOICES, TASK_CATEGORY_CHOICES, TASK_STATUS_CHOICES
+from .utils import combine_date_time
 
 
 class UserProfile(models.Model):
@@ -49,6 +50,11 @@ class CalendarEvent(models.Model):
     external_uid = models.CharField(max_length=255, blank=True)
     location = models.CharField(max_length=255, blank=True)
     description = models.TextField(blank=True)
+    recurrence_weekdays = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='0=Monday … 6=Sunday. Empty means a one-time event on start date.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -64,12 +70,40 @@ class CalendarEvent(models.Model):
     def __str__(self):
         return f'{self.title} ({self.start_datetime:%Y-%m-%d %H:%M})'
 
-    def to_fullcalendar_event(self):
+    @property
+    def recurrence_weekday_labels(self):
+        if not self.recurrence_weekdays:
+            return []
+        names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        return [names[d] for d in sorted(self.recurrence_weekdays) if isinstance(d, int) and 0 <= d < 7]
+
+    def occurrence_on_date(self, target_date):
+        """Return (start, end) aware datetimes on target_date, or None if this event does not occur."""
+        if not self.is_fixed:
+            return None
+        local_start = timezone.localtime(self.start_datetime)
+        local_end = timezone.localtime(self.end_datetime)
+        if self.recurrence_weekdays:
+            if target_date.weekday() not in self.recurrence_weekdays:
+                return None
+        else:
+            if local_start.date() != target_date:
+                return None
+        start = combine_date_time(target_date, local_start.time())
+        end = combine_date_time(target_date, local_end.time())
+        if end <= start:
+            end = end + timedelta(days=1)
+        return start, end
+
+    def to_fullcalendar_event(self, occurrence_start=None, occurrence_end=None):
+        start = occurrence_start or self.start_datetime
+        end = occurrence_end or self.end_datetime
+        day_key = timezone.localtime(start).date().isoformat()
         return {
-            'id': f'event-{self.pk}',
+            'id': f'event-{self.pk}-{day_key}',
             'title': self.title,
-            'start': self.start_datetime.isoformat(),
-            'end': self.end_datetime.isoformat(),
+            'start': start.isoformat(),
+            'end': end.isoformat(),
             'extendedProps': {
                 'eventType': self.event_type,
                 'source': self.source,
